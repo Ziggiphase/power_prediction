@@ -37,7 +37,7 @@ if st.button("Predict Power Consumption"):
             st.markdown('<p style="color:#006400; font-size:24px; font-weight:bold;">PEAK TRAFFIC</p>', unsafe_allow_html=True)
 
             
-        elif prediction[0]>=310:
+        elif prediction[0]>=65:
             st.success(f"Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction[0]:.2f}")
             st.markdown('<p style="color:#008000; font-size:20px; font-weight:normal;">POWER MODE INITIALIZED</p>', unsafe_allow_html=True)
 
