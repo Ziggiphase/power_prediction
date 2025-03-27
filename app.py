@@ -32,7 +32,7 @@ if st.button("Predict Power Consumption"):
     model = models.get(sector_choice)
     if model:
         prediction = model.predict(np.array([[traffic_volume]]))
-        if prediction[0]>=100:
+        if prediction[0]>=70:
             st.success(f"Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction[0]:.2f}")
         else:
             #st.error("Model not loaded. Please check your model files.")
