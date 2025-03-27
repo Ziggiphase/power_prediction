@@ -34,11 +34,15 @@ if st.button("Predict Power Consumption"):
         prediction = model.predict(np.array([[traffic_volume]]))
         if prediction[0]>=70:
             st.success(f"Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction[0]:.2f}")
-            st.write_stream("POWER MODE INITIALIZED")
+            st.write("POWER MODE INITIALIZED")
+            
+        elif prediction[0]>=310:
+            st.success(f"Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction[0]:.2f}")
+            st.write("PEAK TRAFFIC")
             
         else:
             #st.error("Model not loaded. Please check your model files.")
-            st.write_stream("SLEEP MODE INITIALIZED")
+            st.write("SLEEP MODE INITIALIZED")
     else:
         st.error("Model not loaded, Please check your model files.")
         
