@@ -39,7 +39,7 @@ if st.button("Predict Power Consumption"):
             
         elif prediction[0]>=65:
             st.success(f"Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction[0]:.2f}")
-            st.markdown('<p style="color:#008000; font-size:20px; font-weight:normal;">POWER MODE INITIALIZED</p>', unsafe_allow_html=True)
+            st.markdown('<p style="color:#008000; font-size:20px; font-weight:normal;">ACTIVATE MODE INITIALIZED</p>', unsafe_allow_html=True)
 
             
         else:
