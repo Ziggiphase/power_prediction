@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
-from scipy.interpolate import make_interp_spline
+from scipy.interpolate import interp1d
 
 # Load models
 model_files = {
@@ -117,7 +117,7 @@ if not df.empty:
 
     # Plot based on chart type
     for sector in df["Sector"].unique():
-        sector_data = df[df["Sector"] == sector].sort_values("Traffic Volume")
+        sector_data = df[df["Sector"] == sector]
         color = sector_colors.get(sector, "black")  # Default color if missing
 
         if chart_type == "Line Chart":
@@ -131,11 +131,24 @@ if not df.empty:
         elif chart_type == "Smooth Scatter Plot":
             x = np.array(sector_data["Traffic Volume"])
             y = np.array(sector_data["Power Consumption"])
+
+            # Ensure interpolation works with duplicate x-values
+            sorted_indices = np.argsort(x)
+            x_sorted = x[sorted_indices]
+            y_sorted = y[sorted_indices]
+
             if len(x) > 2:
-                # Create smooth curve using spline interpolation
-                x_smooth = np.linspace(x.min(), x.max(), 300)
-                y_smooth = make_interp_spline(x, y, k=2)(x_smooth)
+                # Use linear or cubic interpolation (cubic needs at least 4 points)
+                kind = 'cubic' if len(x) > 3 else 'linear'
+                interpolation = interp1d(x_sorted, y_sorted, kind=kind, fill_value="extrapolate")
+
+                # Generate smoother x-values (even with duplicates)
+                x_smooth = np.linspace(x_sorted.min(), x_sorted.max(), 300)
+                y_smooth = interpolation(x_smooth)
+
                 ax.plot(x_smooth, y_smooth, color=color, linestyle='-', alpha=0.7)
+
+            # Scatter plot for actual points
             ax.scatter(x, y, color=color, label=sector, edgecolors='black')
 
     ax.set_xlabel("Traffic Volume")
