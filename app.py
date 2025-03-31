@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+from scipy.interpolate import make_interp_spline
 
 # Load models
 model_files = {
@@ -30,8 +31,20 @@ if os.path.exists(data_file):
 else:
     df = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
 
+# Color mapping for sectors
+sector_colors = {
+    "s1": "blue",
+    "s2": "green",
+    "s3": "red"
+}
+
 # Streamlit UI
 st.title("📊 Sector Traffic vs Power Consumption Prediction App")
+
+# Display sector colors in sidebar
+st.sidebar.header("📌 Sector Color Codes")
+for sector, color in sector_colors.items():
+    st.sidebar.markdown(f"🟢 **{sector.upper()} → {color.capitalize()}**")
 
 # Select sector
 sector_choice = st.selectbox("Select a sector", list(model_files.keys()))
@@ -74,10 +87,7 @@ st.sidebar.header("⚙️ Visualization Settings")
 sector_filter = st.sidebar.selectbox("Select sector to view", ["All"] + list(model_files.keys()))
 
 # Select chart type
-chart_type = st.sidebar.radio("Choose chart type:", ["Line Chart", "Bar Chart", "Scatter Plot"])
-
-# Select color theme
-color_theme = st.sidebar.selectbox("Choose chart color:", ["blue", "green", "red", "purple", "orange"])
+chart_type = st.sidebar.radio("Choose chart type:", ["Line Chart", "Bar Chart", "Smooth Scatter Plot"])
 
 # Clear Data Button
 if st.sidebar.button("🗑️ Reset Data"):
@@ -107,15 +117,26 @@ if not df.empty:
 
     # Plot based on chart type
     for sector in df["Sector"].unique():
-        sector_data = df[df["Sector"] == sector]
+        sector_data = df[df["Sector"] == sector].sort_values("Traffic Volume")
+        color = sector_colors.get(sector, "black")  # Default color if missing
 
         if chart_type == "Line Chart":
             ax.plot(sector_data["Traffic Volume"], sector_data["Power Consumption"], 
-                    marker='o', linestyle='-', color=color_theme, label=sector)
+                    marker='o', linestyle='-', color=color, label=sector)
+        
         elif chart_type == "Bar Chart":
-            ax.bar(sector_data["Traffic Volume"], sector_data["Power Consumption"], color=color_theme, label=sector)
-        elif chart_type == "Scatter Plot":
-            ax.scatter(sector_data["Traffic Volume"], sector_data["Power Consumption"], color=color_theme, label=sector)
+            ax.bar(sector_data["Traffic Volume"], sector_data["Power Consumption"], 
+                   color=color, label=sector)
+        
+        elif chart_type == "Smooth Scatter Plot":
+            x = np.array(sector_data["Traffic Volume"])
+            y = np.array(sector_data["Power Consumption"])
+            if len(x) > 2:
+                # Create smooth curve using spline interpolation
+                x_smooth = np.linspace(x.min(), x.max(), 300)
+                y_smooth = make_interp_spline(x, y, k=2)(x_smooth)
+                ax.plot(x_smooth, y_smooth, color=color, linestyle='-', alpha=0.7)
+            ax.scatter(x, y, color=color, label=sector, edgecolors='black')
 
     ax.set_xlabel("Traffic Volume")
     ax.set_ylabel("Power Consumption")
