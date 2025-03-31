@@ -80,16 +80,7 @@ if st.button("🚀 Predict Power Consumption"):
         else:
             st.markdown('<p style="color:#FF0000; font-size:20px;">🌙 SLEEP MODE INITIALIZED</p>', unsafe_allow_html=True)
 
-# Sidebar: Filter and chart options
-st.sidebar.header("⚙️ Visualization Settings")
-
-# Select sector to visualize (or all)
-sector_filter = st.sidebar.selectbox("Select sector to view", ["All"] + list(model_files.keys()))
-
-# Select chart type
-chart_type = st.sidebar.radio("Choose chart type:", ["Line Chart", "Bar Chart", "Smooth Scatter Plot"])
-
-# Clear Data Button
+# Sidebar: Clear Data Button
 if st.sidebar.button("🗑️ Reset Data"):
     df = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
     df.to_csv(data_file, index=False)
@@ -106,52 +97,39 @@ if not df.empty:
     )
 
 # Visualization
-st.subheader("📈 Traffic Volume vs Power Consumption Trends")
+st.subheader("📈 Sector-wise Traffic vs Power Consumption Trends")
 
 if not df.empty:
-    # Filter data based on selection
-    if sector_filter != "All":
-        df = df[df["Sector"] == sector_filter]
-
-    fig, ax = plt.subplots()
-
-    # Plot based on chart type
     for sector in df["Sector"].unique():
         sector_data = df[df["Sector"] == sector]
         color = sector_colors.get(sector, "black")  # Default color if missing
 
-        if chart_type == "Line Chart":
-            ax.plot(sector_data["Traffic Volume"], sector_data["Power Consumption"], 
-                    marker='o', linestyle='-', color=color, label=sector)
-        
-        elif chart_type == "Bar Chart":
-            ax.bar(sector_data["Traffic Volume"], sector_data["Power Consumption"], 
-                   color=color, label=sector)
-        
-        elif chart_type == "Smooth Scatter Plot":
-            x = np.array(sector_data["Traffic Volume"])
-            y = np.array(sector_data["Power Consumption"])
+        fig, ax = plt.subplots()
 
-            # Sort values for interpolation
-            sorted_indices = np.argsort(x)
-            x_sorted = x[sorted_indices]
-            y_sorted = y[sorted_indices]
+        x = np.array(sector_data["Traffic Volume"])
+        y = np.array(sector_data["Power Consumption"])
 
-            # Handle duplicates without removing them
-            if len(x) > 3:
-                spline = UnivariateSpline(x_sorted, y_sorted, k=3, s=1)  # Smooth curve
-                x_smooth = np.linspace(x_sorted.min(), x_sorted.max(), 300)
-                y_smooth = spline(x_smooth)
+        # Sort values for interpolation
+        sorted_indices = np.argsort(x)
+        x_sorted = x[sorted_indices]
+        y_sorted = y[sorted_indices]
 
-                ax.plot(x_smooth, y_smooth, color=color, linestyle='-', alpha=0.7)
+        # Handle duplicates without removing them
+        if len(x) > 3:
+            spline = UnivariateSpline(x_sorted, y_sorted, k=3, s=1)  # Smooth curve
+            x_smooth = np.linspace(x_sorted.min(), x_sorted.max(), 300)
+            y_smooth = spline(x_smooth)
 
-            # Scatter plot for actual points
-            ax.scatter(x, y, color=color, label=sector, edgecolors='black')
+            ax.plot(x_smooth, y_smooth, color=color, linestyle='-', alpha=0.7, label=f"{sector} (Smoothed)")
 
-    ax.set_xlabel("Traffic Volume")
-    ax.set_ylabel("Power Consumption")
-    ax.set_title(f"Traffic vs Power Consumption ({sector_filter})")
-    ax.legend()
-    st.pyplot(fig)
+        # Scatter plot for actual points
+        ax.scatter(x, y, color=color, label=f"{sector} Data", edgecolors='black')
+
+        ax.set_xlabel("Traffic Volume")
+        ax.set_ylabel("Power Consumption")
+        ax.set_title(f"Traffic vs Power Consumption ({sector.upper()})")
+        ax.legend()
+        st.pyplot(fig)
+
 else:
     st.info("No data available yet. Make a prediction to start visualizing trends.")
