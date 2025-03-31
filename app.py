@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
+from scipy.interpolate import UnivariateSpline
 
 # Load models
 model_files = {
@@ -132,19 +132,16 @@ if not df.empty:
             x = np.array(sector_data["Traffic Volume"])
             y = np.array(sector_data["Power Consumption"])
 
-            # Ensure interpolation works with duplicate x-values
+            # Sort values for interpolation
             sorted_indices = np.argsort(x)
             x_sorted = x[sorted_indices]
             y_sorted = y[sorted_indices]
 
-            if len(x) > 2:
-                # Use linear or cubic interpolation (cubic needs at least 4 points)
-                kind = 'cubic' if len(x) > 3 else 'linear'
-                interpolation = interp1d(x_sorted, y_sorted, kind=kind, fill_value="extrapolate")
-
-                # Generate smoother x-values (even with duplicates)
+            # Handle duplicates without removing them
+            if len(x) > 3:
+                spline = UnivariateSpline(x_sorted, y_sorted, k=3, s=1)  # Smooth curve
                 x_smooth = np.linspace(x_sorted.min(), x_sorted.max(), 300)
-                y_smooth = interpolation(x_smooth)
+                y_smooth = spline(x_smooth)
 
                 ax.plot(x_smooth, y_smooth, color=color, linestyle='-', alpha=0.7)
 
