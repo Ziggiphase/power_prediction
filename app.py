@@ -4,132 +4,121 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
-from scipy.interpolate import UnivariateSpline
 
-# Load models
-model_files = {
-    "s1": "model1.pkl",
-    "s2": "model2.pkl",
-    "s3": "model3.pkl"
-}
+# Sidebar
+choice = st.sidebar.selectbox('Select Predict per sector or multiple sector', ('Predict per sector', 'Predict per multiple sector'))
 
-models = {}
-for sector, file in model_files.items():
-    try:
-        with open(file, 'rb') as f:
-            models[sector] = pickle.load(f)
-    except FileNotFoundError:
-        st.error(f"⚠️ Model file {file} not found. Please upload it.")
-        models[sector] = None
+if choice == 'Predict per sector':
+    # Load models
+    model_files = {
+        "s1": "model1.pkl",
+        "s2": "model2.pkl",
+        "s3": "model3.pkl"
+    }
 
-# Data storage file
-data_file = "data.csv"
+    models = {}
+    for sector, file in model_files.items():
+        try:
+            with open(file, 'rb') as f:
+                models[sector] = pickle.load(f)
+        except FileNotFoundError:
+            st.error(f"⚠️ Model file {file} not found. Please upload it.")
+            models[sector] = None
 
-# Load existing data or create a new DataFrame
-if os.path.exists(data_file):
-    df = pd.read_csv(data_file)
-else:
-    df = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
+    # Data storage file
+    data_file = "data.csv"
 
-# Color mapping for sectors
-sector_colors = {
-    "s1": "blue",
-    "s2": "green",
-    "s3": "red"
-}
+    # Load existing data or create a new DataFrame
+    if os.path.exists(data_file):
+        df = pd.read_csv(data_file)
+    else:
+        df = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
 
-# Streamlit UI
-st.title("📊 Sector Traffic vs Power Consumption Prediction App")
+    # Color mapping for sectors
+    sector_colors = {
+        "s1": "blue",
+        "s2": "green",
+        "s3": "red"
+    }
 
-# Display sector colors in sidebar
-st.sidebar.header("📌 Sector Color Codes")
-for sector, color in sector_colors.items():
-    st.sidebar.markdown(f"🟢 **{sector.upper()} → {color.capitalize()}**")
+    # Streamlit UI
+    st.title("📊 Sector Traffic vs Power Consumption Prediction App")
 
-# Select sector
-sector_choice = st.selectbox("Select a sector", list(model_files.keys()))
+    # Select sector
+    sector_choice = st.selectbox("Select a sector", list(model_files.keys()))
 
-# Input traffic volume
-traffic_volume = st.number_input(
-    f"Enter traffic volume for {sector_choice}", 
-    min_value=0.0, 
-    value=0.0, 
-    format="%.2f"
-)
-
-# Predict button
-if st.button("🚀 Predict Power Consumption"):
-    model = models.get(sector_choice)
-    
-    if model:
-        prediction = model.predict(np.array([[traffic_volume]]))[0]
-        
-        # Display prediction
-        st.success(f"🔋 Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction:.2f}")
-
-        # Save data to CSV
-        new_data = pd.DataFrame({"Sector": [sector_choice], "Traffic Volume": [traffic_volume], "Power Consumption": [prediction]})
-        df = pd.concat([df, new_data], ignore_index=True)
-        df.to_csv(data_file, index=False)
-
-        # Display status
-        if prediction >= 310:
-            st.markdown('<p style="color:#006400; font-size:24px; font-weight:bold;">🔥 PEAK TRAFFIC</p>', unsafe_allow_html=True)
-        elif prediction >= 65:
-            st.markdown('<p style="color:#008000; font-size:20px;">⚡ ACTIVATE MODE INITIALIZED</p>', unsafe_allow_html=True)
-        else:
-            st.markdown('<p style="color:#FF0000; font-size:20px;">🌙 SLEEP MODE INITIALIZED</p>', unsafe_allow_html=True)
-
-# Sidebar: Clear Data Button
-if st.sidebar.button("🗑️ Reset Data"):
-    df = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
-    df.to_csv(data_file, index=False)
-    st.sidebar.success("Data cleared!")
-    st.experimental_rerun()  # Refresh page
-
-# Download CSV Button
-if not df.empty:
-    st.sidebar.download_button(
-        label="📥 Download Data as CSV",
-        data=df.to_csv(index=False),
-        file_name="traffic_power_data.csv",
-        mime="text/csv"
+    # Input traffic volume
+    traffic_volume = st.number_input(
+        f"Enter traffic volume for {sector_choice}", 
+        min_value=0.0, 
+        value=0.0, 
+        format="%.2f"
     )
 
-# Visualization
-st.subheader("📈 Sector-wise Traffic vs Power Consumption Trends")
+    # Predict button
+    if st.button("🚀 Predict Power Consumption"):
+        model = models.get(sector_choice)
+        
+        if model:
+            prediction = model.predict(np.array([[traffic_volume]]))[0]
+            
+            # Display prediction
+            st.success(f"🔋 Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction:.2f}")
 
-if not df.empty:
-    for sector in df["Sector"].unique():
-        sector_data = df[df["Sector"] == sector]
-        color = sector_colors.get(sector, "black")  # Default color if missing
+            # Save data to CSV
+            new_data = pd.DataFrame({"Sector": [sector_choice], "Traffic Volume": [traffic_volume], "Power Consumption": [prediction]})
+            df = pd.concat([df, new_data], ignore_index=True)
+            df.to_csv(data_file, index=False)
 
-        fig, ax = plt.subplots()
-
-        x = np.array(sector_data["Traffic Volume"])
-        y = np.array(sector_data["Power Consumption"])
-
-        # Sort values for interpolation
-        sorted_indices = np.argsort(x)
-        x_sorted = x[sorted_indices]
-        y_sorted = y[sorted_indices]
-
-        # Handle duplicates without removing them
-        if len(x) > 3:
-            spline = UnivariateSpline(x_sorted, y_sorted, k=3, s=1)  # Smooth curve
-            x_smooth = np.linspace(x_sorted.min(), x_sorted.max(), 300)
-            y_smooth = spline(x_smooth)
-
-            ax.plot(x_smooth, y_smooth, color=color, linestyle='-', alpha=0.7, label=f"{sector} (Smoothed)")
-
-        # Scatter plot for actual points
-        ax.scatter(x, y, color=color, label=f"{sector} Data", edgecolors='black')
-
-        ax.set_xlabel("Traffic Volume")
-        ax.set_ylabel("Power Consumption")
-        ax.set_title(f"Traffic vs Power Consumption ({sector.upper()})")
-        ax.legend()
-        st.pyplot(fig)
-
+            # Display mode status
+            if prediction >= 310:
+                st.markdown('<p style="color:#006400; font-size:24px; font-weight:bold;">🔥 PEAK TRAFFIC</p>', unsafe_allow_html=True)
+            elif prediction >= 65:
+                st.markdown('<p style="color:#008000; font-size:20px;">⚡ ACTIVATE MODE INITIALIZED</p>', unsafe_allow_html=True)
+            else:
+                st.markdown('<p style="color:#FF0000; font-size:20px;">🌙 SLEEP MODE INITIALIZED</p>', unsafe_allow_html=True)
+            
 else:
-    st.info("No data available yet. Make a prediction to start visualizing trends.")
+    # Load models for multiple sector prediction
+    with open("model1.pkl", 'rb') as f:
+        model1 = pickle.load(f)
+    with open("model2.pkl", 'rb') as f:
+        model2 = pickle.load(f)
+    with open("model3.pkl", 'rb') as f:
+        model3 = pickle.load(f)
+
+    st.title("📊 Multiple Sector Prediction")
+    csv = st.file_uploader('Upload CSV file for prediction', type=['csv'])
+
+    if csv is not None:
+        csv = pd.read_csv(csv)
+    else:
+        csv = pd.DataFrame(columns=['S1', 'S2', 'S3'])
+
+    if st.button("🚀 Predict Power Consumption"):
+        p1 = model1.predict(pd.DataFrame(csv.iloc[:, 0]))
+        p2 = model2.predict(pd.DataFrame(csv.iloc[:, 1]))
+        p3 = model3.predict(pd.DataFrame(csv.iloc[:, 2]))
+
+        df = pd.DataFrame({
+            'S1': csv.iloc[:, 0], 'P1': p1,
+            'S2': csv.iloc[:, 1], 'P2': p2,
+            'S3': csv.iloc[:, 2], 'P3': p3
+        })
+        st.write(df)
+
+        # Line chart for multiple sectors
+        st.subheader("📈 Traffic vs Power Consumption")
+
+        # Plot S1 vs P1, S2 vs P2, and S3 vs P3
+        st.line_chart(df[['S1', 'P1']], use_container_width=True)
+        st.line_chart(df[['S2', 'P2']], use_container_width=True)
+        st.line_chart(df[['S3', 'P3']], use_container_width=True)
+
+        # Download CSV Button
+        st.sidebar.download_button(
+            label="📥 Download Data as CSV",
+            data=df.to_csv(index=False),
+            file_name="traffic_power_data.csv",
+            mime="text/csv"
+        )
