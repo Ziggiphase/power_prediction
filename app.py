@@ -1,12 +1,16 @@
 import streamlit as st
+import altair as alt
 import pickle
 import numpy as np
 import pandas as pd
 import os
-import matplotlib.pyplot as plt
 
 # Sidebar
 choice = st.sidebar.selectbox('Select Predict per sector or multiple sector', ('Predict per sector', 'Predict per multiple sector'))
+
+# Initialize storage for previous predictions
+if 'sector_data' not in st.session_state:
+    st.session_state.sector_data = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
 
 if choice == 'Predict per sector':
     # Load models
@@ -34,13 +38,6 @@ if choice == 'Predict per sector':
     else:
         df = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
 
-    # Color mapping for sectors
-    sector_colors = {
-        "s1": "blue",
-        "s2": "green",
-        "s3": "red"
-    }
-
     # Streamlit UI
     st.title("📊 Sector Traffic vs Power Consumption Prediction App")
 
@@ -65,10 +62,9 @@ if choice == 'Predict per sector':
             # Display prediction
             st.success(f"🔋 Predicted power consumption ({sector_choice.replace('s', 'p')}): {prediction:.2f}")
 
-            # Save data to CSV
+            # Save data to session state (persistent storage)
             new_data = pd.DataFrame({"Sector": [sector_choice], "Traffic Volume": [traffic_volume], "Power Consumption": [prediction]})
-            df = pd.concat([df, new_data], ignore_index=True)
-            df.to_csv(data_file, index=False)
+            st.session_state.sector_data = pd.concat([st.session_state.sector_data, new_data], ignore_index=True)
 
             # Display mode status
             if prediction >= 310:
@@ -77,7 +73,50 @@ if choice == 'Predict per sector':
                 st.markdown('<p style="color:#008000; font-size:20px;">⚡ ACTIVATE MODE INITIALIZED</p>', unsafe_allow_html=True)
             else:
                 st.markdown('<p style="color:#FF0000; font-size:20px;">🌙 SLEEP MODE INITIALIZED</p>', unsafe_allow_html=True)
-            
+
+    # Reset button to clear the session state
+    if st.button("🔄 Reset"):
+        st.session_state.sector_data = pd.DataFrame(columns=["Sector", "Traffic Volume", "Power Consumption"])
+        st.rerun()
+
+    # Create a line chart for each sector using the saved data
+    if not st.session_state.sector_data.empty:
+        def create_colored_line_chart(df, x_col, y_col, title):
+            color_scale = alt.Scale(
+                domain=["High (>=310)", "Medium (65-309)", "Low (<65)"],
+                range=["#0000FF", "#90EE90", "#FF0000"]  # Dark Blue, Light Green, Red
+            )
+
+            # Create a categorical column for color mapping
+            df["Category"] = df[y_col].apply(lambda x: 
+                "High (>=310)" if x >= 310 else 
+                "Medium (65-309)" if x >= 65 else 
+                "Low (<65)"
+            )
+
+            # Create Altair line chart
+            chart = (
+                alt.Chart(df)
+                .mark_line(strokeWidth=3)
+                .encode(
+                    x=alt.X(x_col, title="Traffic Volume"),
+                    y=alt.Y(y_col, title="Power Consumption"),
+                    color=alt.Color("Category:N", scale=color_scale, legend=alt.Legend(title="Power Consumption Levels"))
+                )
+                .properties(title=title, width=600, height=400)
+            )
+            return chart
+
+        # Generate charts for each sector
+        chart1 = create_colored_line_chart(st.session_state.sector_data[st.session_state.sector_data["Sector"] == "s1"], "Traffic Volume", "Power Consumption", "Sector 1: Traffic vs Power Consumption")
+        chart2 = create_colored_line_chart(st.session_state.sector_data[st.session_state.sector_data["Sector"] == "s2"], "Traffic Volume", "Power Consumption", "Sector 2: Traffic vs Power Consumption")
+        chart3 = create_colored_line_chart(st.session_state.sector_data[st.session_state.sector_data["Sector"] == "s3"], "Traffic Volume", "Power Consumption", "Sector 3: Traffic vs Power Consumption")
+
+        # Display charts in Streamlit
+        st.altair_chart(chart1, use_container_width=True)
+        st.altair_chart(chart2, use_container_width=True)
+        st.altair_chart(chart3, use_container_width=True)
+
 else:
     # Load models for multiple sector prediction
     with open("model1.pkl", 'rb') as f:
@@ -96,29 +135,59 @@ else:
         csv = pd.DataFrame(columns=['S1', 'S2', 'S3'])
 
     if st.button("🚀 Predict Power Consumption"):
+        # Make predictions
         p1 = model1.predict(pd.DataFrame(csv.iloc[:, 0]))
         p2 = model2.predict(pd.DataFrame(csv.iloc[:, 1]))
         p3 = model3.predict(pd.DataFrame(csv.iloc[:, 2]))
 
-        df = pd.DataFrame({
-            'S1': csv.iloc[:, 0], 'P1': p1,
-            'S2': csv.iloc[:, 1], 'P2': p2,
-            'S3': csv.iloc[:, 2], 'P3': p3
-        })
-        st.write(df)
+        # Add predictions to the DataFrame
+        csv['P1'] = p1
+        csv['P2'] = p2
+        csv['P3'] = p3
+        
+        st.write(csv)
 
-        # Line chart for multiple sectors
-        st.subheader("📈 Traffic vs Power Consumption")
+        # Function to create colored line charts
+        def create_colored_line_chart(df, x_col, y_col, title):
+            color_scale = alt.Scale(
+                domain=["High (>=310)", "Medium (65-309)", "Low (<65)"],
+                range=["#0000FF", "#90EE90", "#FF0000"]  # Dark Blue, Light Green, Red
+            )
 
-        # Plot S1 vs P1, S2 vs P2, and S3 vs P3
-        st.line_chart(df[['S1', 'P1']], use_container_width=True)
-        st.line_chart(df[['S2', 'P2']], use_container_width=True)
-        st.line_chart(df[['S3', 'P3']], use_container_width=True)
+            # Create a categorical column for color mapping
+            df["Category"] = df[y_col].apply(lambda x: 
+                "High (>=310)" if x >= 310 else 
+                "Medium (65-309)" if x >= 65 else 
+                "Low (<65)"
+            )
+
+            # Create Altair line chart
+            chart = (
+                alt.Chart(df)
+                .mark_line(strokeWidth=3)
+                .encode(
+                    x=alt.X(x_col, title="Traffic Volume"),
+                    y=alt.Y(y_col, title="Power Consumption"),
+                    color=alt.Color("Category:N", scale=color_scale, legend=alt.Legend(title="Power Consumption Levels"))
+                )
+                .properties(title=title, width=600, height=400)
+            )
+            return chart
+
+        # Generate charts for each sector
+        chart1 = create_colored_line_chart(csv, "S1", "P1", "Sector 1: Traffic vs Power Consumption")
+        chart2 = create_colored_line_chart(csv, "S2", "P2", "Sector 2: Traffic vs Power Consumption")
+        chart3 = create_colored_line_chart(csv, "S3", "P3", "Sector 3: Traffic vs Power Consumption")
+
+        # Display charts in Streamlit
+        st.altair_chart(chart1, use_container_width=True)
+        st.altair_chart(chart2, use_container_width=True)
+        st.altair_chart(chart3, use_container_width=True)
 
         # Download CSV Button
         st.sidebar.download_button(
             label="📥 Download Data as CSV",
-            data=df.to_csv(index=False),
+            data=csv.to_csv(index=False),
             file_name="traffic_power_data.csv",
             mime="text/csv"
         )
