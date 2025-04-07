@@ -155,24 +155,35 @@ else:
             )
 
             # Create a categorical column for color mapping
+            # Create a categorical column for color mapping
             df["Category"] = df[y_col].apply(lambda x: 
-                "High (>=310)" if x >= 310 else 
-                "Medium (65-309)" if x >= 65 else 
-                "Low (<65)"
+                "PEAK MODE" if x >= 310 else 
+                "ACTIVATE MODE" if x >= 65 else 
+                "SLEEP MODE"
             )
 
-            # Create Altair line chart
-            chart = (
-                alt.Chart(df)
-                .mark_line(strokeWidth=3)
-                .encode(
-                    x=alt.X(x_col, title="Traffic Volume"),
-                    y=alt.Y(y_col, title="Power Consumption"),
-                    color=alt.Color("Category:N", scale=color_scale, legend=alt.Legend(title="Power Consumption Levels"))
-                )
-                .properties(title=title, width=600, height=400)
+            # Update color scale with new labels
+            # Update color scale with new labels
+            color_scale = alt.Scale(
+            domain=["PEAK MODE", "ACTIVATE MODE", "SLEEP MODE"],
+            range=["#0000FF", "#90EE90", "#FF0000"]  # Blue, Light Green, Red
             )
-            return chart
+
+            # Create line and point layers
+            line = alt.Chart(df).mark_line(strokeWidth=3).encode(
+            x=alt.X(x_col, title="Traffic Volume"),
+            y=alt.Y(y_col, title="Power Consumption"),
+            color=alt.Color("Category:N", scale=color_scale, legend=alt.Legend(title="Power Status Mode"))
+            )
+
+            points = alt.Chart(df).mark_point(filled=True, size=80).encode(
+            x=x_col,
+            y=y_col,
+            color=alt.Color("Category:N", scale=color_scale)
+            )
+
+            return (line + points).properties(title=title, width=600, height=400)
+            #return chart
 
         # Generate charts for each sector
         chart1 = create_colored_line_chart(csv, "S1", "P1", "Sector 1: Traffic vs Power Consumption")
