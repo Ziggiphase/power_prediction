@@ -83,7 +83,7 @@ if choice == 'Predict per sector':
     if not st.session_state.sector_data.empty:
         def create_colored_line_chart(df, x_col, y_col, title):
             color_scale = alt.Scale(
-                domain=["PEAK MODE (>=310)", "ACTIVATE MODE (65-309)", "SLEEP MODE (<65)"],
+                domain=["High (>=310)", "Medium (65-309)", "Low (<65)"],
                 range=["#0000FF", "#90EE90", "#FF0000"]  # Dark Blue, Light Green, Red
             )
 
@@ -150,7 +150,7 @@ else:
         # Function to create colored line charts
         def create_colored_line_chart(df, x_col, y_col, title):
             color_scale = alt.Scale(
-                domain=["PEAK MODE (>=310)", "ACTIVATE MODE (65-309)", "SLEEP MODE (<65)"],
+                domain=["High (>=310)", "Medium (65-309)", "Low (<65)"],
                 range=["#0000FF", "#90EE90", "#FF0000"]  # Dark Blue, Light Green, Red
             )
 
